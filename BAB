@@ -1,0 +1,637 @@
+-- Auto Farm — Jwo-Style UI (Red/Black)
+local TweenService   = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players        = game:GetService("Players")
+local Lighting       = game:GetService("Lighting")
+local VirtualUser    = game:GetService("VirtualUser")
+
+local plr = Players.LocalPlayer
+
+-- ─── Config ──────────────────────────────────────────────────────────────────
+local cfg = {
+    farmActive    = false,
+    farmCancelled = false,
+    tpDelay       = 2,
+    runDelay      = 4,
+    antiAfk       = false,
+}
+
+local ouro = 0
+local fase  = 1
+
+-- ─── Icons ───────────────────────────────────────────────────────────────────
+local ICO = {
+    float  = "rbxassetid://136405657308674",
+    glow   = "rbxassetid://5028857084",
+    farm   = "rbxassetid://7185431419",
+    afk    = "rbxassetid://1083501284",
+    header = "rbxassetid://8498174594",
+}
+
+-- ─── Colors ──────────────────────────────────────────────────────────────────
+local RED     = Color3.fromRGB(210, 40,  55)
+local DARKRED = Color3.fromRGB(140, 25,  35)
+local GREEN   = Color3.fromRGB(55,  195, 95)
+local BG      = Color3.fromRGB(10,  6,   6)
+local PANEL   = Color3.fromRGB(18,  10,  10)
+local ROW_BG  = Color3.fromRGB(22,  12,  12)
+local STROKE  = Color3.fromRGB(90,  30,  30)
+
+-- ─── Farm Logic ──────────────────────────────────────────────────────────────
+local function startAntiAfk()
+    task.spawn(function()
+        while cfg.antiAfk do
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton1(Vector2.new())
+            end)
+            task.wait(55)
+        end
+    end)
+end
+
+local function doRun(notifyFn)
+    local char = plr.Character
+    if not char then
+        plr.CharacterAdded:Wait()
+        char = plr.Character
+    end
+
+    local r = char:FindFirstChild("HumanoidRootPart")
+    if not r then return end
+
+    local stages = workspace:FindFirstChild("BoatStages")
+        and workspace.BoatStages:FindFirstChild("NormalStages")
+
+    if not stages then
+        notifyFn("ไม่พบ NormalStages!")
+        cfg.farmActive = false
+        return
+    end
+
+    for i = 1, 10 do
+        if not cfg.farmActive or cfg.farmCancelled then return end
+        local stage = stages:FindFirstChild("CaveStage" .. i)
+        if stage then
+            local dp = stage:FindFirstChild("DarknessPart")
+            if dp then
+                r.CFrame = dp.CFrame
+                local floor = Instance.new("Part")
+                floor.Anchored     = true
+                floor.CanCollide   = true
+                floor.Size         = Vector3.new(10, 1, 10)
+                floor.Transparency = 1
+                floor.Position     = r.Position - Vector3.new(0, 3, 0)
+                floor.Parent       = char
+                task.wait(cfg.tpDelay)
+                floor:Destroy()
+                fase = i
+            end
+        end
+    end
+
+    if not cfg.farmActive or cfg.farmCancelled then return end
+
+    local theEnd = stages:FindFirstChild("TheEnd")
+    if theEnd then
+        local chest = theEnd:FindFirstChild("GoldenChest")
+        if chest then
+            local trigger = chest:FindFirstChild("Trigger")
+            if trigger then
+                r.CFrame = trigger.CFrame
+                local waited, got = 0, false
+                while waited < 10 and cfg.farmActive do
+                    task.wait(0.5)
+                    waited += 0.5
+                    if Lighting.ClockTime ~= 14 then
+                        got = true
+                        break
+                    end
+                end
+                if got then
+                    ouro += 100
+                    notifyFn("เก็บทองได้! รวม " .. ouro .. " gold")
+                end
+            end
+        end
+    end
+
+    if not cfg.farmActive or cfg.farmCancelled then return end
+
+    local spawned = false
+    local conn
+    conn = plr.CharacterAdded:Connect(function()
+        spawned = true
+        conn:Disconnect()
+    end)
+    local t = 0
+    while not spawned and cfg.farmActive and t < 30 do
+        task.wait(1); t += 1
+    end
+    if spawned then task.wait(2) end
+    task.wait(cfg.runDelay)
+end
+
+-- ─── GUI ─────────────────────────────────────────────────────────────────────
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn   = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent         = plr:WaitForChild("PlayerGui")
+
+-- Drag helper
+local function drag(obj)
+    local dragging, dragInput, dragStart, startPos
+    obj.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            dragging  = true
+            dragStart = i.Position
+            startPos  = obj.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    obj.InputChanged:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseMovement
+        or i.UserInputType == Enum.UserInputType.Touch then dragInput = i end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if i == dragInput and dragging then
+            local d = i.Position - dragStart
+            obj.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + d.X,
+                startPos.Y.Scale, startPos.Y.Offset + d.Y
+            )
+        end
+    end)
+end
+
+-- ── Float Button — กลางจอ ─────────────────────────────────────────────────────
+local Float = Instance.new("ImageButton", gui)
+Float.Size             = UDim2.new(0, 52, 0, 52)
+Float.Position         = UDim2.new(0.5, -26, 0.5, -26)   -- << กลางจอ
+Float.BackgroundColor3 = Color3.fromRGB(20, 6, 6)
+Float.BorderSizePixel  = 0
+Float.Image            = ICO.float
+Float.ImageColor3      = Color3.fromRGB(255, 120, 120)
+Float.ScaleType        = Enum.ScaleType.Fit
+Float.AutoButtonColor  = false
+Float.ZIndex           = 10
+Instance.new("UICorner", Float).CornerRadius = UDim.new(1, 0)
+
+local floatStroke = Instance.new("UIStroke", Float)
+floatStroke.Color     = RED
+floatStroke.Thickness = 2.5
+
+local glowRing = Instance.new("ImageLabel", Float)
+glowRing.Size               = UDim2.new(1, 22, 1, 22)
+glowRing.Position           = UDim2.new(0, -11, 0, -11)
+glowRing.BackgroundTransparency = 1
+glowRing.Image              = ICO.glow
+glowRing.ImageColor3        = RED
+glowRing.ImageTransparency  = 0.5
+glowRing.ZIndex             = 9
+
+drag(Float)
+
+-- Glow pulse
+task.spawn(function()
+    while true do
+        TweenService:Create(glowRing, TweenInfo.new(1.1, Enum.EasingStyle.Sine), {ImageTransparency=0.75}):Play()
+        task.wait(1.1)
+        TweenService:Create(glowRing, TweenInfo.new(1.1, Enum.EasingStyle.Sine), {ImageTransparency=0.35}):Play()
+        task.wait(1.1)
+    end
+end)
+
+
+-- ── Main Frame ────────────────────────────────────────────────────────────────
+local SIZE = 270
+local F = Instance.new("Frame", gui)
+F.Size             = UDim2.new(0, SIZE, 0, SIZE)
+F.Position         = UDim2.new(0.5, -SIZE/2, 0.5, -SIZE/2)
+F.BackgroundColor3 = BG
+F.BorderSizePixel  = 0
+F.Visible          = false
+F.ZIndex           = 5
+Instance.new("UICorner", F).CornerRadius = UDim.new(0, 16)
+
+local fStroke = Instance.new("UIStroke", F)
+fStroke.Color        = RED
+fStroke.Thickness    = 1.5
+fStroke.Transparency = 0.2
+
+local bgG = Instance.new("UIGradient", F)
+bgG.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 6, 6)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 4, 4)),
+})
+bgG.Rotation = 150
+
+drag(F)
+
+-- Toggle panel
+Float.MouseButton1Click:Connect(function()
+    F.Visible = not F.Visible
+    if F.Visible then
+        F.BackgroundTransparency = 1
+        TweenService:Create(F, TweenInfo.new(0.18), {BackgroundTransparency=0}):Play()
+        Float.ImageColor3 = Color3.fromRGB(255, 80, 80)
+    else
+        Float.ImageColor3 = Color3.fromRGB(255, 120, 120)
+    end
+end)
+
+-- ── Header ────────────────────────────────────────────────────────────────────
+local hdr = Instance.new("Frame", F)
+hdr.Size             = UDim2.new(1, -14, 0, 32)
+hdr.Position         = UDim2.new(0, 7, 0, 7)
+hdr.BackgroundColor3 = Color3.fromRGB(30, 8, 8)
+hdr.BorderSizePixel  = 0
+hdr.ZIndex           = 6
+Instance.new("UICorner", hdr).CornerRadius = UDim.new(0, 10)
+
+local hdrG = Instance.new("UIGradient", hdr)
+hdrG.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 30, 30)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 15, 15)),
+})
+hdrG.Rotation = 118
+
+local hdrIco = Instance.new("ImageLabel", hdr)
+hdrIco.Size                = UDim2.new(0, 18, 0, 18)
+hdrIco.Position            = UDim2.new(0, 8, 0.5, -9)
+hdrIco.BackgroundTransparency = 1
+hdrIco.Image               = ICO.header
+hdrIco.ImageColor3         = Color3.new(1, 1, 1)
+hdrIco.ScaleType           = Enum.ScaleType.Fit
+hdrIco.ZIndex              = 7
+
+local hdrTxt = Instance.new("TextLabel", hdr)
+hdrTxt.Size                = UDim2.new(1, -36, 1, 0)
+hdrTxt.Position            = UDim2.new(0, 32, 0, 0)
+hdrTxt.BackgroundTransparency = 1
+hdrTxt.Text                = "128B!t Hub X | Buil a Boat"
+hdrTxt.Font                = Enum.Font.GothamBold
+hdrTxt.TextSize            = 11
+hdrTxt.TextColor3          = Color3.new(1, 1, 1)
+hdrTxt.TextXAlignment      = Enum.TextXAlignment.Left
+hdrTxt.ZIndex              = 7
+
+-- ── Status Bar ────────────────────────────────────────────────────────────────
+local statusBar = Instance.new("Frame", F)
+statusBar.Size             = UDim2.new(1, -14, 0, 22)
+statusBar.Position         = UDim2.new(0, 7, 0, 46)
+statusBar.BackgroundColor3 = Color3.fromRGB(16, 6, 6)
+statusBar.BorderSizePixel  = 0
+statusBar.ZIndex           = 6
+Instance.new("UICorner", statusBar).CornerRadius = UDim.new(0, 7)
+Instance.new("UIStroke", statusBar).Color = STROKE
+
+local statusDot = Instance.new("Frame", statusBar)
+statusDot.Size             = UDim2.new(0, 7, 0, 7)
+statusDot.Position         = UDim2.new(0, 8, 0.5, -3)
+statusDot.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+statusDot.BorderSizePixel  = 0
+statusDot.ZIndex           = 7
+Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+
+local statusTxt = Instance.new("TextLabel", statusBar)
+statusTxt.Size                = UDim2.new(1, -24, 1, 0)
+statusTxt.Position            = UDim2.new(0, 22, 0, 0)
+statusTxt.BackgroundTransparency = 1
+statusTxt.Text                = "IDLE"
+statusTxt.TextColor3          = Color3.fromRGB(120, 60, 60)
+statusTxt.TextXAlignment      = Enum.TextXAlignment.Left
+statusTxt.TextSize            = 10
+statusTxt.Font                = Enum.Font.Gotham
+statusTxt.ZIndex              = 7
+
+-- Notify label (แสดงข้อความใต้ status bar)
+local notifyTxt = Instance.new("TextLabel", F)
+notifyTxt.Size                = UDim2.new(1, -14, 0, 16)
+notifyTxt.Position            = UDim2.new(0, 7, 0, 70)
+notifyTxt.BackgroundTransparency = 1
+notifyTxt.Text                = ""
+notifyTxt.TextColor3          = Color3.fromRGB(255, 180, 100)
+notifyTxt.TextXAlignment      = Enum.TextXAlignment.Left
+notifyTxt.TextSize            = 9
+notifyTxt.Font                = Enum.Font.Gotham
+notifyTxt.ZIndex              = 6
+
+local notifyThread
+local function notify(msg)
+    notifyTxt.Text = msg
+    if notifyThread then task.cancel(notifyThread) end
+    notifyThread = task.delay(3, function()
+        notifyTxt.Text = ""
+        notifyThread = nil
+    end)
+end
+
+local dotThread
+local function startDotPulse()
+    if dotThread then return end
+    dotThread = task.spawn(function()
+        while cfg.farmActive or cfg.antiAfk do
+            TweenService:Create(statusDot, TweenInfo.new(0.55, Enum.EasingStyle.Sine), {BackgroundTransparency=0.1}):Play()
+            task.wait(0.55)
+            TweenService:Create(statusDot, TweenInfo.new(0.55, Enum.EasingStyle.Sine), {BackgroundTransparency=0.75}):Play()
+            task.wait(0.55)
+        end
+        statusDot.BackgroundTransparency = 0
+        dotThread = nil
+    end)
+end
+
+local function refreshStatus()
+    local parts = {}
+    if cfg.farmActive then table.insert(parts, "Farm") end
+    if cfg.antiAfk    then table.insert(parts, "AntiAFK") end
+    if #parts == 0 then
+        statusTxt.Text      = "IDLE"
+        statusTxt.TextColor3 = Color3.fromRGB(120, 60, 60)
+        statusDot.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+    else
+        statusTxt.Text      = "กำลังรัน " .. table.concat(parts, " + ") .. "..."
+        statusTxt.TextColor3 = Color3.fromRGB(255, 120, 120)
+        statusDot.BackgroundColor3 = RED
+        startDotPulse()
+    end
+end
+
+-- ── Scroll Frame ──────────────────────────────────────────────────────────────
+local scroll = Instance.new("ScrollingFrame", F)
+scroll.Size                  = UDim2.new(1, -14, 1, -92)
+scroll.Position              = UDim2.new(0, 7, 0, 90)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel       = 0
+scroll.ScrollBarThickness    = 3
+scroll.ScrollBarImageColor3  = RED
+scroll.CanvasSize            = UDim2.new(0, 0, 0, 0)
+scroll.AutomaticCanvasSize   = Enum.AutomaticSize.Y
+scroll.ZIndex                = 6
+
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding   = UDim.new(0, 6)
+
+local listPad = Instance.new("UIPadding", scroll)
+listPad.PaddingTop    = UDim.new(0, 2)
+listPad.PaddingBottom = UDim.new(0, 6)
+
+-- ── Row Helper ────────────────────────────────────────────────────────────────
+local function makeRow(parent, order, rowIcon, icoColor, labelTxt, descTxt, btnColor)
+    local row = Instance.new("Frame", parent)
+    row.Size             = UDim2.new(1, 0, 0, 56)
+    row.BackgroundColor3 = ROW_BG
+    row.BorderSizePixel  = 0
+    row.LayoutOrder      = order
+    row.ZIndex           = 6
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", row).Color = STROKE
+
+    local icoBox = Instance.new("Frame", row)
+    icoBox.Size             = UDim2.new(0, 32, 0, 32)
+    icoBox.Position         = UDim2.new(0, 8, 0.5, -16)
+    icoBox.BackgroundColor3 = Color3.fromRGB(28, 10, 10)
+    icoBox.BorderSizePixel  = 0
+    icoBox.ZIndex           = 7
+    Instance.new("UICorner", icoBox).CornerRadius = UDim.new(0, 7)
+
+    local icoImg = Instance.new("ImageLabel", icoBox)
+    icoImg.Size                = UDim2.new(0, 20, 0, 20)
+    icoImg.Position            = UDim2.new(0.5, -10, 0.5, -10)
+    icoImg.BackgroundTransparency = 1
+    icoImg.Image               = rowIcon
+    icoImg.ImageColor3         = icoColor
+    icoImg.ScaleType           = Enum.ScaleType.Fit
+    icoImg.ZIndex              = 8
+
+    local dot = Instance.new("Frame", icoBox)
+    dot.Size             = UDim2.new(0, 9, 0, 9)
+    dot.Position         = UDim2.new(1, -4, 0, -4)
+    dot.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    dot.BorderSizePixel  = 0
+    dot.ZIndex           = 9
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    local dotStroke = Instance.new("UIStroke", dot)
+    dotStroke.Color     = BG
+    dotStroke.Thickness = 1.5
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size                = UDim2.new(1, -110, 0, 20)
+    lbl.Position            = UDim2.new(0, 48, 0, 8)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                = labelTxt
+    lbl.TextColor3          = Color3.fromRGB(220, 200, 200)
+    lbl.TextXAlignment      = Enum.TextXAlignment.Left
+    lbl.TextSize            = 12
+    lbl.Font                = Enum.Font.GothamBold
+    lbl.ZIndex              = 7
+
+    local desc = Instance.new("TextLabel", row)
+    desc.Size                = UDim2.new(1, -110, 0, 14)
+    desc.Position            = UDim2.new(0, 48, 0, 30)
+    desc.BackgroundTransparency = 1
+    desc.Text                = descTxt
+    desc.TextColor3          = Color3.fromRGB(110, 60, 60)
+    desc.TextXAlignment      = Enum.TextXAlignment.Left
+    desc.TextSize            = 9
+    desc.Font                = Enum.Font.Gotham
+    desc.ZIndex              = 7
+
+    local btn = Instance.new("TextButton", row)
+    btn.Size             = UDim2.new(0, 58, 0, 28)
+    btn.Position         = UDim2.new(1, -64, 0.5, -14)
+    btn.BackgroundColor3 = btnColor
+    btn.BorderSizePixel  = 0
+    btn.Text             = "START"
+    btn.TextColor3       = Color3.new(1, 1, 1)
+    btn.TextSize         = 10
+    btn.Font             = Enum.Font.GothamBold
+    btn.AutoButtonColor  = false
+    btn.ZIndex           = 7
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    return { row=row, icoImg=icoImg, dot=dot, lbl=lbl, desc=desc, btn=btn }
+end
+
+-- ─── สร้างแถว ─────────────────────────────────────────────────────────────────
+local farmRow = makeRow(scroll, 1, ICO.farm, Color3.fromRGB(255, 130, 130), "Auto Farm",  "ออโต้ฟาร์มทอง",   GREEN)
+local afkRow  = makeRow(scroll, 2, ICO.afk,  Color3.fromRGB(255, 200, 120), "Anti AFK",   "ป้องกันถูกเตะ",   Color3.fromRGB(160, 100, 30))
+
+-- Slider rows
+local function makeSliderRow(parent, order, labelTxt, value)
+    local row = Instance.new("Frame", parent)
+    row.Size             = UDim2.new(1, 0, 0, 52)
+    row.BackgroundColor3 = ROW_BG
+    row.BorderSizePixel  = 0
+    row.LayoutOrder      = order
+    row.ZIndex           = 6
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", row).Color = STROKE
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size                = UDim2.new(1, -16, 0, 18)
+    lbl.Position            = UDim2.new(0, 10, 0, 6)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                = labelTxt .. ":  " .. value .. "s"
+    lbl.TextColor3          = Color3.fromRGB(220, 200, 200)
+    lbl.TextXAlignment      = Enum.TextXAlignment.Left
+    lbl.TextSize            = 11
+    lbl.Font                = Enum.Font.GothamBold
+    lbl.ZIndex              = 7
+
+    -- Track
+    local track = Instance.new("Frame", row)
+    track.Size             = UDim2.new(1, -16, 0, 6)
+    track.Position         = UDim2.new(0, 8, 0, 32)
+    track.BackgroundColor3 = Color3.fromRGB(35, 12, 12)
+    track.BorderSizePixel  = 0
+    track.ZIndex           = 7
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame", track)
+    fill.Size             = UDim2.new(value / 15, 0, 1, 0)
+    fill.BackgroundColor3 = RED
+    fill.BorderSizePixel  = 0
+    fill.ZIndex           = 8
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local handle = Instance.new("TextButton", track)
+    handle.Size             = UDim2.new(0, 14, 0, 14)
+    handle.Position         = UDim2.new(fill.Size.X.Scale, -7, 0.5, -7)
+    handle.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    handle.BorderSizePixel  = 0
+    handle.Text             = ""
+    handle.AutoButtonColor  = false
+    handle.ZIndex           = 9
+    Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+
+    -- Drag slider
+    local draggingSlider = false
+    handle.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = true
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if draggingSlider and (i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch) then
+            local trackAbs = track.AbsolutePosition
+            local trackSize = track.AbsoluteSize
+            local relX = math.clamp((i.Position.X - trackAbs.X) / trackSize.X, 0, 1)
+            fill.Size   = UDim2.new(relX, 0, 1, 0)
+            handle.Position = UDim2.new(relX, -7, 0.5, -7)
+            local realVal = math.floor(relX * 15 * 10 + 0.5) / 10
+            lbl.Text = labelTxt .. ":  " .. realVal .. "s"
+            return realVal
+        end
+    end)
+
+    return { row=row, lbl=lbl, fill=fill, handle=handle }
+end
+
+local tpSlider  = makeSliderRow(scroll, 3, "Teleport Delay",  cfg.tpDelay)
+local runSlider = makeSliderRow(scroll, 4, "Delay Per Run",   cfg.runDelay)
+
+-- ── Farm Row Logic ────────────────────────────────────────────────────────────
+local farmThread
+
+local function stopFarm()
+    cfg.farmActive    = false
+    cfg.farmCancelled = true
+    if farmThread then task.cancel(farmThread); farmThread = nil end
+    farmRow.btn.Text             = "START"
+    TweenService:Create(farmRow.btn, TweenInfo.new(0.15), {BackgroundColor3=GREEN}):Play()
+    farmRow.dot.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    farmRow.lbl.TextColor3       = Color3.fromRGB(220, 200, 200)
+    farmRow.desc.Text            = "ออโต้ฟาร์มทอง"
+    farmRow.desc.TextColor3      = Color3.fromRGB(110, 60, 60)
+    refreshStatus()
+end
+
+local function startFarm()
+    cfg.farmActive    = true
+    cfg.farmCancelled = false
+    farmRow.btn.Text             = "STOP"
+    TweenService:Create(farmRow.btn, TweenInfo.new(0.15), {BackgroundColor3=DARKRED}):Play()
+    farmRow.dot.BackgroundColor3 = Color3.fromRGB(100, 255, 130)
+    farmRow.lbl.TextColor3       = Color3.fromRGB(255, 150, 150)
+    farmRow.desc.Text            = "กำลังฟาร์ม..."
+    farmRow.desc.TextColor3      = Color3.fromRGB(200, 120, 120)
+    refreshStatus()
+
+    farmThread = task.spawn(function()
+        while cfg.farmActive and not cfg.farmCancelled do
+            local ok, err = pcall(doRun, notify)
+            if not ok then
+                notify("Error: " .. tostring(err))
+                task.wait(3)
+            end
+        end
+    end)
+end
+
+farmRow.btn.MouseEnter:Connect(function()
+    TweenService:Create(farmRow.btn, TweenInfo.new(0.1), {
+        BackgroundColor3 = cfg.farmActive and Color3.fromRGB(160, 30, 30) or Color3.fromRGB(75, 220, 115)
+    }):Play()
+end)
+farmRow.btn.MouseLeave:Connect(function()
+    TweenService:Create(farmRow.btn, TweenInfo.new(0.1), {
+        BackgroundColor3 = cfg.farmActive and DARKRED or GREEN
+    }):Play()
+end)
+farmRow.btn.MouseButton1Click:Connect(function()
+    if cfg.farmActive then stopFarm() else startFarm() end
+end)
+
+-- ── Anti AFK Row Logic ────────────────────────────────────────────────────────
+local AFK_ON = Color3.fromRGB(160, 100, 30)
+
+local function stopAfk()
+    cfg.antiAfk = false
+    afkRow.btn.Text             = "START"
+    TweenService:Create(afkRow.btn, TweenInfo.new(0.15), {BackgroundColor3=AFK_ON}):Play()
+    afkRow.dot.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    afkRow.lbl.TextColor3       = Color3.fromRGB(220, 200, 200)
+    afkRow.desc.Text            = "ป้องกันถูกเตะ"
+    afkRow.desc.TextColor3      = Color3.fromRGB(110, 60, 60)
+    refreshStatus()
+end
+
+local function startAfk()
+    cfg.antiAfk = true
+    afkRow.btn.Text             = "STOP"
+    TweenService:Create(afkRow.btn, TweenInfo.new(0.15), {BackgroundColor3=DARKRED}):Play()
+    afkRow.dot.BackgroundColor3 = Color3.fromRGB(255, 200, 100)
+    afkRow.lbl.TextColor3       = Color3.fromRGB(255, 210, 140)
+    afkRow.desc.Text            = "กำลังป้องกัน..."
+    afkRow.desc.TextColor3      = Color3.fromRGB(200, 160, 80)
+    refreshStatus()
+    startAntiAfk()
+end
+
+afkRow.btn.MouseEnter:Connect(function()
+    TweenService:Create(afkRow.btn, TweenInfo.new(0.1), {
+        BackgroundColor3 = cfg.antiAfk and Color3.fromRGB(160, 30, 30) or Color3.fromRGB(200, 130, 50)
+    }):Play()
+end)
+afkRow.btn.MouseLeave:Connect(function()
+    TweenService:Create(afkRow.btn, TweenInfo.new(0.1), {
+        BackgroundColor3 = cfg.antiAfk and DARKRED or AFK_ON
+    }):Play()
+end)
+afkRow.btn.MouseButton1Click:Connect(function()
+    if cfg.antiAfk then stopAfk() else startAfk() end
+end)

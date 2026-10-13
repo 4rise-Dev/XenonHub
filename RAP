@@ -1,0 +1,1623 @@
+-- ==========================================
+-- Libraries
+-- ==========================================
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+-- ==========================================
+-- Services
+-- ==========================================
+local Players         = game:GetService("Players")
+local RunService      = game:GetService("RunService")
+local HttpService     = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local TweenService    = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local StatsService    = game:GetService("Stats")
+
+-- ==========================================
+-- Constants
+-- ==========================================
+local LocalPlayer    = Players.LocalPlayer
+local VERSION        = "v 3.0"
+local DEFAULT_KEY    = "U"
+local DEFAULT_THEME  = "Willow Noir"
+local PlaceId        = game.PlaceId
+
+-- ==========================================
+-- State Variables
+-- ==========================================
+local CurrentKey     = DEFAULT_KEY
+local CurrentTheme   = DEFAULT_THEME
+
+local NotificationsSilenced   = false
+local NotificationBusy        = false
+local ReopenNotificationBusy  = false
+local SelectedConfig          = nil
+
+local DiscordInvite = "YOUR_DISCORD_INVITE"
+local DiscordAPI =
+    "https://discord.com/api/v10/invites/"
+    .. DiscordInvite
+    .. "?with_counts=true&with_expiration=true"
+
+-- ==========================================
+-- Themes
+-- ==========================================
+local Themes = {}
+
+local function Gradient(colors, rotation)
+    local points = {}
+    for position, color in pairs(colors) do
+        if type(color) == "table" then
+            points[position] = {
+                Color = Color3.fromHex(color.Color),
+                Transparency = color.Transparency or 0,
+            }
+        else
+            points[position] = {
+                Color = Color3.fromHex(color),
+                Transparency = 0,
+            }
+        end
+    end
+    return WindUI:Gradient(points, { Rotation = rotation or 45 })
+end
+
+local function CreateTheme(name, accent, background, outline, button, icon)
+    local theme = {
+        Name = name,
+        Accent = accent,
+        Background = background,
+        Outline = outline,
+        Text = Color3.fromHex("#FFFFFF"),
+        Placeholder = Color3.fromHex("#B8A0A8"),
+        Button = button,
+        Icon = icon,
+    }
+    Themes[name] = theme
+    WindUI:AddTheme(theme)
+end
+
+CreateTheme("Willow Rose",
+    Gradient({ ["0"]="#711E42", ["50"]="#E45B91", ["100"]="#711E42" }, 45),
+    Gradient({ ["0"]={Color="#0B0408",Transparency=0.06}, ["25"]={Color="#190812",Transparency=0.08}, ["50"]={Color="#351126",Transparency=0.10}, ["75"]={Color="#711E42",Transparency=0.13}, ["100"]={Color="#0B0408",Transparency=0.06} }, 135),
+    Gradient({ ["0"]={Color="#4B1730",Transparency=0.45}, ["50"]={Color="#D14F85",Transparency=0.22}, ["100"]={Color="#5A1C39",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#2A0C1C",Transparency=0.72}, ["50"]={Color="#7E2850",Transparency=0.61}, ["100"]={Color="#2A0C1C",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Noir",
+    Gradient({ ["0"]="#111111", ["25"]="#252525", ["50"]="#777777", ["75"]="#252525", ["100"]="#111111" }, 45),
+    Gradient({ ["0"]={Color="#050505",Transparency=0.05}, ["30"]={Color="#101010",Transparency=0.07}, ["55"]={Color="#202020",Transparency=0.10}, ["75"]={Color="#333333",Transparency=0.13}, ["100"]={Color="#050505",Transparency=0.05} }, 135),
+    Gradient({ ["0"]={Color="#FFFFFF",Transparency=0.78}, ["50"]={Color="#8D8D8D",Transparency=0.45}, ["100"]={Color="#FFFFFF",Transparency=0.80} }, 90),
+    Gradient({ ["0"]={Color="#101010",Transparency=0.70}, ["50"]={Color="#555555",Transparency=0.48}, ["100"]={Color="#101010",Transparency=0.70} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Crimson",
+    Gradient({ ["0"]="#5C0B1C", ["50"]="#A81738", ["100"]="#5C0B1C" }, 45),
+    Gradient({ ["0"]={Color="#090306",Transparency=0.08}, ["25"]={Color="#14050A",Transparency=0.09}, ["55"]={Color="#260710",Transparency=0.10}, ["80"]={Color="#5C0B1C",Transparency=0.14}, ["100"]={Color="#090306",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#3A0A15",Transparency=0.45}, ["50"]={Color="#8B1732",Transparency=0.22}, ["100"]={Color="#420A17",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#2A0A14",Transparency=0.72}, ["50"]={Color="#70152B",Transparency=0.61}, ["100"]={Color="#2A0A14",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Midnight",
+    Gradient({ ["0"]="#171B35", ["50"]="#4652A8", ["100"]="#171B35" }, 45),
+    Gradient({ ["0"]={Color="#05060C",Transparency=0.08}, ["25"]={Color="#080B17",Transparency=0.09}, ["55"]={Color="#11182B",Transparency=0.10}, ["80"]={Color="#202B52",Transparency=0.14}, ["100"]={Color="#05060C",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#1D2447",Transparency=0.45}, ["50"]={Color="#5867C7",Transparency=0.22}, ["100"]={Color="#252B55",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#11162D",Transparency=0.72}, ["50"]={Color="#303D7D",Transparency=0.61}, ["100"]={Color="#11162D",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Violet",
+    Gradient({ ["0"]="#4A176E", ["50"]="#A44BE2", ["100"]="#4A176E" }, 45),
+    Gradient({ ["0"]={Color="#08040D",Transparency=0.08}, ["25"]={Color="#12071B",Transparency=0.09}, ["55"]={Color="#251039",Transparency=0.10}, ["80"]={Color="#4A176E",Transparency=0.14}, ["100"]={Color="#08040D",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#35144C",Transparency=0.45}, ["50"]={Color="#9844CF",Transparency=0.22}, ["100"]={Color="#431B5C",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#1D0C2B",Transparency=0.72}, ["50"]={Color="#60308A",Transparency=0.61}, ["100"]={Color="#1D0C2B",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Ocean",
+    Gradient({ ["0"]="#0B4C67", ["50"]="#36BFEA", ["100"]="#0B4C67" }, 45),
+    Gradient({ ["0"]={Color="#03080C",Transparency=0.08}, ["25"]={Color="#05131C",Transparency=0.09}, ["55"]={Color="#082735",Transparency=0.10}, ["80"]={Color="#0B4C67",Transparency=0.14}, ["100"]={Color="#03080C",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#0B384A",Transparency=0.45}, ["50"]={Color="#36A9D0",Transparency=0.22}, ["100"]={Color="#0B4055",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#06212E",Transparency=0.72}, ["50"]={Color="#185E76",Transparency=0.61}, ["100"]={Color="#06212E",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Emerald",
+    Gradient({ ["0"]="#0B593C", ["50"]="#38D79A", ["100"]="#0B593C" }, 45),
+    Gradient({ ["0"]={Color="#030907",Transparency=0.08}, ["25"]={Color="#06160F",Transparency=0.09}, ["55"]={Color="#0A2D20",Transparency=0.10}, ["80"]={Color="#0B593C",Transparency=0.14}, ["100"]={Color="#030907",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#0B3E2B",Transparency=0.45}, ["50"]={Color="#32B986",Transparency=0.22}, ["100"]={Color="#0B4934",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#06261A",Transparency=0.72}, ["50"]={Color="#177955",Transparency=0.61}, ["100"]={Color="#06261A",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+CreateTheme("Willow Ember",
+    Gradient({ ["0"]="#7A2A0C", ["50"]="#E87530", ["100"]="#7A2A0C" }, 45),
+    Gradient({ ["0"]={Color="#0B0604",Transparency=0.08}, ["25"]={Color="#1A0B06",Transparency=0.09}, ["55"]={Color="#3A180B",Transparency=0.10}, ["80"]={Color="#7A2A0C",Transparency=0.14}, ["100"]={Color="#0B0604",Transparency=0.08} }, 135),
+    Gradient({ ["0"]={Color="#52200E",Transparency=0.45}, ["50"]={Color="#CF5C25",Transparency=0.22}, ["100"]={Color="#642810",Transparency=0.42} }, 90),
+    Gradient({ ["0"]={Color="#2C1107",Transparency=0.72}, ["50"]={Color="#7F3514",Transparency=0.61}, ["100"]={Color="#2C1107",Transparency=0.74} }, 90),
+    Color3.fromHex("#FFFFFF"))
+
+WindUI:SetTheme(DEFAULT_THEME)
+
+local ThemeButtonColors = {
+    ["Willow Rose"]     = { Low="#711E42", High="#E45B91" },
+    ["Willow Noir"]     = { Low="#101010", High="#777777" },
+    ["Willow Crimson"]  = { Low="#5C0B1C", High="#A81738" },
+    ["Willow Midnight"] = { Low="#171B35", High="#4652A8" },
+    ["Willow Violet"]   = { Low="#4A176E", High="#A44BE2" },
+    ["Willow Ocean"]    = { Low="#0B4C67", High="#36BFEA" },
+    ["Willow Emerald"]  = { Low="#0B593C", High="#38D79A" },
+    ["Willow Ember"]    = { Low="#7A2A0C", High="#E87530" },
+}
+
+local ThemeTagColors = {
+    ["Willow Rose"]     = "#E45B91",
+    ["Willow Noir"]     = "#666666",
+    ["Willow Crimson"]  = "#A81738",
+    ["Willow Midnight"] = "#4652A8",
+    ["Willow Violet"]   = "#A44BE2",
+    ["Willow Ocean"]    = "#36BFEA",
+    ["Willow Emerald"]  = "#38D79A",
+    ["Willow Ember"]    = "#E87530",
+}
+
+local function GetOpenButtonColor(themeName)
+    local colors = ThemeButtonColors[themeName] or ThemeButtonColors[DEFAULT_THEME]
+    return ColorSequence.new(Color3.fromHex(colors.Low), Color3.fromHex(colors.High))
+end
+
+local function GetTagColor(themeName)
+    return Color3.fromHex(ThemeTagColors[themeName] or ThemeTagColors[DEFAULT_THEME])
+end
+
+-- ==========================================
+-- Helper Functions
+-- ==========================================
+local function SafeRequest(options)
+    local requestFunction =
+        (WindUI.Creator and WindUI.Creator.Request)
+        or http_request or request
+        or (syn and syn.request)
+        or (fluxus and fluxus.request)
+    if not requestFunction then return nil end
+    local success, response = pcall(function() return requestFunction(options) end)
+    if not success or not response then return nil end
+    if response.StatusCode and response.StatusCode ~= 200 then return nil end
+    return response
+end
+
+local function Notify(title, content, icon, duration, force)
+    duration = duration or 4
+    if NotificationsSilenced and not force then return end
+    if NotificationBusy and not force then return end
+    NotificationBusy = true
+    WindUI:Notify({ Title=title, Content=content, Icon=icon or "info", Duration=duration })
+    task.delay(duration, function() NotificationBusy = false end)
+end
+
+local function ReopenNotify()
+    if ReopenNotificationBusy then return end
+    ReopenNotificationBusy = true
+    task.delay(5, function() ReopenNotificationBusy = false end)
+end
+
+-- ==========================================
+-- Window
+-- ==========================================
+WindUI:SetFont("rbxassetid://115884882777577")
+
+local Window = WindUI:CreateWindow({
+    Title = "128B!t Hub X | Ride A Pet",
+    Icon = "https://i.postimg.cc/63NzC6Ym/mi-m-ch-x-7-20260926071835.png",
+    Author = "made by 128B!t",
+    Folder = "128BitConfig",
+    Size = UDim2.fromOffset(700, 480),
+    MinSize = Vector2.new(580, 390),
+    MaxSize = Vector2.new(920, 680),
+    ToggleKey = Enum.KeyCode.U,
+    Transparent = true,
+    Theme = DEFAULT_THEME,
+    Resizable = true,
+    SideBarWidth = 180,
+    HideSearchBar = true,
+    ScrollBarEnabled = true,
+    BackgroundImageTransparency = 0.5,
+    ShadowTransparency = 0.22,
+    Radius = 14,
+    ElementsRadius = 10,
+    Acrylic = true,
+    NewElements = true,
+    HidePanelBackground = true,
+    Topbar = { Height=44, ButtonsType="Mac" },
+    OpenButton = {
+        Title = "128B!t Hub X",
+        Icon = "https://i.postimg.cc/BbdNqW5g/a64070bdf0a63b4e7c0f6176e7e92bb5.jpg",
+        CornerRadius = UDim.new(1, 0),
+        StrokeThickness = 1,
+        Draggable = true,
+        Enabled = true,
+        OnlyMobile = false,
+        Scale = 0.92,
+        Color = GetOpenButtonColor(DEFAULT_THEME),
+    },
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Callback = function() end,
+    },
+})
+
+Window:SetBackgroundTransparency(0.5)
+
+local function ApplyOpenButtonTheme(themeName)
+    pcall(function()
+        Window:EditOpenButton({
+            Title="128B!t Hub X", Icon="https://i.postimg.cc/63NzC6Ym/mi-m-ch-x-7-20260926071835.png",
+            CornerRadius=UDim.new(1,0), StrokeThickness=1,
+            Enabled=true, Draggable=true, OnlyMobile=false,
+            Scale=0.92, Color=GetOpenButtonColor(themeName),
+        })
+    end)
+end
+
+local VersionTag = Window:Tag({ Title=VERSION, Icon="badge-check", Color=GetTagColor(DEFAULT_THEME), Radius=7 })
+local FPSTag     = Window:Tag({ Title="FPS: --", Icon="gauge",     Color=GetTagColor(DEFAULT_THEME), Radius=7 })
+
+local function ApplyTagTheme(themeName)
+    local color = GetTagColor(themeName)
+    pcall(function() VersionTag:SetColor(color) end)
+    pcall(function() FPSTag:SetColor(color) end)
+end
+
+ApplyOpenButtonTheme(DEFAULT_THEME)
+ApplyTagTheme(DEFAULT_THEME)
+
+local FPS = 0
+local Frames = 0
+local LastFPSUpdate = os.clock()
+RunService.RenderStepped:Connect(function()
+    Frames += 1
+    if os.clock() - LastFPSUpdate >= 1 then
+        FPS = Frames; Frames = 0; LastFPSUpdate = os.clock()
+        FPSTag:SetTitle("FPS: " .. tostring(FPS))
+    end
+end)
+-- Declaration (วางกับกลุ่ม Window:Tab)
+local UtilityTab = Window:Tab({
+    Title = "Info",
+    Icon = "info"
+})
+local RideTab = Window:Tab({
+    Title = "Main",
+    Icon  = "egg"
+})
+local AutoTab = Window:Tab({
+    Title = "Automation",
+    Icon  = "trending-up"
+})
+local EspTab = Window:Tab({
+    Title = "ESP",
+    Icon  = "eye"
+})
+local LocalTab = Window:Tab({
+    Title = "Movement",
+    Icon = "user"
+})
+local SettingsTab = Window:Tab({
+    Title = "Settings",
+    Icon = "settings"
+})
+-- Info Tab
+UtilityTab:Paragraph({
+    Title     = "128B!t Hub X | Discord",
+    Desc      = "discord support | ดิสคอร์ดสำหรับแจ้งปัญหา",
+    Image     = "rbxassetid://115578801000914",
+    ImageSize = 50,
+    Buttons = {
+        {
+            Icon     = "copy",
+            Title    = "Copy",
+            Callback = function()
+                setclipboard("https://discord.gg/E6ft5s7Ddu")
+            end
+        }
+    }
+})
+UtilityTab:Space()
+local StatsService = game:GetService("Stats")
+
+UtilityTab:Section({ Title="Server Info", Icon="server", Opened=true })
+
+-- FIX: InputIcon → Icon
+local UtilFPSInput  = UtilityTab:Input({ Title="FPS",       Placeholder="กำลังวัด...", Icon="gauge" })
+local UtilPingInput = UtilityTab:Input({ Title="Ping (ms)", Placeholder="กำลังวัด...", Icon="wifi"  })
+
+do
+    local _frames=0; local _last=os.clock()
+    RunService.RenderStepped:Connect(function()
+        _frames+=1
+        local now=os.clock()
+        if now-_last>=1 then
+            pcall(function() UtilFPSInput:Set(tostring(_frames)) end)
+            local ok,ping=pcall(function()
+                return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+            end)
+            pcall(function() UtilPingInput:Set(ok and tostring(ping) or "N/A") end)
+            _frames=0; _last=now
+        end
+    end)
+end
+
+UtilityTab:Space()
+
+local UtilJobInput   = UtilityTab:Input({ Title="Server Job ID", Placeholder="กดปุ่ม Copy เพื่อดู", Icon="hash" })
+local UtilPlaceInput = UtilityTab:Input({ Title="Place ID",      Placeholder="กำลังโหลด...",         Icon="map"  })
+pcall(function() UtilJobInput:Set(tostring(game.JobId)) end)
+pcall(function() UtilPlaceInput:Set(tostring(game.PlaceId)) end)
+
+UtilityTab:Space()
+UtilityTab:Section({ Title="Actions", Icon="zap", Opened=true })
+
+-- FIX: Group → HStack
+local UtilRow1 = UtilityTab:HStack()
+UtilRow1:Button({
+    Title="Copy Server Info", Desc="คัดลอก JobID และ PlaceID", Justify="Center", Icon="clipboard-copy",
+    Callback=function()
+        local info=string.format("PlaceId: %s\nJobId: %s", tostring(game.PlaceId), tostring(game.JobId))
+        if setclipboard then setclipboard(info); Notify("Server Info","คัดลอกแล้ว!","clipboard-copy",2)
+        else Notify("Server Info",info,"server",4) end
+    end
+})
+UtilRow1:Button({
+    Title="Rejoin", Desc="เข้า Server เดิมใหม่", Justify="Center", Icon="rotate-cw",
+    Callback=function()
+        Notify("Rejoin","กำลัง Rejoin...","rotate-cw",2)
+        task.wait(1.5)
+        pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,game.JobId,LocalPlayer) end)
+    end
+})
+UtilityTab:Space()
+
+UtilityTab:Button({
+    Title="Server Hop", Desc="ย้ายไป Server สุ่ม", Icon="shuffle", Justify="Center",
+    Callback=function()
+        Notify("Server Hop","กำลังหา Server ใหม่...","shuffle",2)
+        task.spawn(function()
+            local url=("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+            local ok,res=pcall(function() return game:HttpGet(url) end)
+            if not ok then Notify("Server Hop","HttpGet ล้มเหลว","triangle-alert",3); return end
+            local ok2,data=pcall(function() return HttpService:JSONDecode(res) end)
+            if not ok2 or not data or not data.data then Notify("Server Hop","Parse ล้มเหลว","triangle-alert",3); return end
+            local current=game.JobId; local servers={}
+            for _,s in ipairs(data.data) do
+                if s.id~=current and (s.playing or 0)<(s.maxPlayers or 1) then table.insert(servers,s) end
+            end
+            if #servers==0 then Notify("Server Hop","ไม่พบ Server ว่าง","triangle-alert",3); return end
+            local pick=servers[math.random(1,#servers)]
+            Notify("Server Hop","กำลัง Hop...","shuffle",2)
+            task.wait(1)
+            pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,pick.id,LocalPlayer) end)
+        end)
+    end
+})
+-- ==========================================
+-- Ride A Pet Content
+-- ==========================================
+
+local PLANT_REMOTE      = game:GetService("ReplicatedStorage").Remotes.Game.EggPlaced
+local TWEEN_SPEED       = 300
+local TWEEN_STYLE       = Enum.EasingStyle.Sine
+local TWEEN_DIRECTION   = Enum.EasingDirection.InOut
+local PLANT_RADIUS      = 6
+local PLANT_DELAY       = 0.65
+
+local tweenSpeed        = TWEEN_SPEED
+local savedReturnCF     = nil
+local autoFarmActive    = false
+local selectedEggName   = nil
+local plantActive       = false
+local selectedEggTypes  = {}
+
+-- หา Plot ของ LocalPlayer
+local function getMyPlot()
+	local plots = workspace:FindFirstChild("Plots")
+	if not plots then return nil end
+	for _, plot in ipairs(plots:GetChildren()) do
+		local data  = plot:FindFirstChild("Data")
+		local owner = data and data:FindFirstChild("Owner")
+		if owner and owner.Value == LocalPlayer then
+			return plot
+		end
+	end
+	return nil
+end
+
+-- ดึงชื่อไข่ไม่ซ้ำจาก RenderedEggs
+local function getEggNames()
+	local folder = workspace:FindFirstChild("RenderedEggs")
+	if not folder then return {"ไม่พบ RenderedEggs"} end
+	local seen, names = {}, {}
+	for _, egg in ipairs(folder:GetChildren()) do
+		if not seen[egg.Name] then
+			seen[egg.Name] = true
+			table.insert(names, egg.Name)
+		end
+	end
+	return #names > 0 and names or {"ไม่มีไข่"}
+end
+
+-- ดึงไข่ทั้งหมดที่ตรงชื่อที่เลือก
+local function getEggsByName(name)
+	local folder = workspace:FindFirstChild("RenderedEggs")
+	if not folder then return {} end
+	local result = {}
+	for _, egg in ipairs(folder:GetChildren()) do
+		if egg.Name == name then
+			table.insert(result, egg)
+		end
+	end
+	return result
+end
+
+-- ดึงชื่อไข่ไม่ซ้ำจาก Backpack
+local function getEggNamesFromBackpack()
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if not backpack then return {} end
+	local seen, names = {}, {}
+	for _, item in ipairs(backpack:GetChildren()) do
+		if item.Name:sub(-3) == "Egg" and not seen[item.Name] then
+			seen[item.Name] = true
+			table.insert(names, item.Name)
+		end
+	end
+	table.sort(names)
+	return names
+end
+
+-- ดึงไข่จาก Backpack กรองตามที่เลือก
+local function getEggsToPlant()
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if not backpack then return {} end
+	local result = {}
+	for _, item in ipairs(backpack:GetChildren()) do
+		if item.Name:sub(-3) == "Egg" then
+			if #selectedEggTypes == 0 then
+				table.insert(result, item)
+			else
+				for _, sel in ipairs(selectedEggTypes) do
+					if item.Name == sel then
+						table.insert(result, item)
+						break
+					end
+				end
+			end
+		end
+	end
+	return result
+end
+
+-- คำนวณตำแหน่งกระจายรอบตัว
+local function getPlantPositions(origin, count)
+	local positions = {}
+	for i = 1, count do
+		local angle  = (2 * math.pi / count) * (i - 1)
+		local offset = Vector3.new(
+			math.cos(angle) * PLANT_RADIUS,
+			0,
+			math.sin(angle) * PLANT_RADIUS
+		)
+		table.insert(positions, origin + offset)
+	end
+	return positions
+end
+
+-- Tween HRP ไปยัง CFrame เป้าหมาย
+local function tweenTo(targetCF, overrideSpeed)
+	local myChar = LocalPlayer.Character
+	local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myHRP then return end
+	local dist     = (myHRP.Position - targetCF.Position).Magnitude
+	local speed    = overrideSpeed or tweenSpeed
+	local duration = math.clamp(dist / speed, 0.05, 10)
+	local tween = TweenService:Create(
+		myHRP,
+		TweenInfo.new(duration, TWEEN_STYLE, TWEEN_DIRECTION),
+		{ CFrame = targetCF }
+	)
+	tween:Play()
+	tween.Completed:Wait()
+end
+
+-- Tween ไปยัง Plot
+local function tweenToPlot(plot)
+	local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if not myHRP then return end
+	local basepart = plot:FindFirstChildWhichIsA("BasePart", true)
+	if not basepart then return end
+	tweenTo(CFrame.new(basepart.Position + Vector3.new(0, 5, 0)))
+end
+
+-- Noclip ระหว่าง farm
+local function setNoclip(state)
+	local char = LocalPlayer.Character
+	if not char then return end
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = not state
+		end
+	end
+end
+
+-- ถือไข่แล้ววาง
+local function plantEgg(egg, pos)
+	local char = LocalPlayer.Character
+	if not char then return end
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if not backpack then return end
+	local tool = backpack:FindFirstChild(egg.Name)
+	if not tool then return end
+	pcall(function() humanoid:EquipTool(tool) end)
+	task.wait(0.2)
+	pcall(function() PLANT_REMOTE:FireServer({ PlantPosition = pos }) end)
+	task.wait(0.2)
+	pcall(function() humanoid:UnequipTools() end)
+end
+-- Pickup ไข่ทั่วไป
+-- ==========================================
+-- Drop ก่อนถึง Plot แล้วไปเก็บไข่ที่ตก
+-- ==========================================
+local function dropAndPickupBeforeHome()
+    local myChar = LocalPlayer.Character
+    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    -- หา homePos
+    local myPlot  = getMyPlot()
+    local homePos = nil
+    if myPlot then
+        local bp = myPlot:FindFirstChildWhichIsA("BasePart", true)
+        if bp then homePos = bp.Position end
+    elseif savedReturnCF then
+        homePos = savedReturnCF.Position
+    end
+
+    if not homePos then
+        -- fallback ไม่รู้ plot → ยิง drop แล้วดิ่งลง
+        pcall(function() BasketDropRemote:FireServer() end)
+        myHRP.CFrame = myHRP.CFrame * CFrame.new(0, -80, 0)
+        task.wait(0.1)
+        return
+    end
+
+    -- คำนวณจุดที่ห่าง 65 studs จาก Plot
+    local currentPos = myHRP.Position
+    local dist = (currentPos - homePos).Magnitude
+
+    if dist >= 60 then
+        local dir       = (homePos - currentPos).Unit
+        local dropPoint = homePos - dir * 65
+        tweenTo(CFrame.new(dropPoint + Vector3.new(0, 5, 0)))
+        task.wait(0.1)
+    end
+
+    -- จำชื่อไข่ที่มีใน RenderedEggs ก่อน drop (snapshot)
+    local beforeDrop = {}
+    local folder = workspace:FindFirstChild("RenderedEggs")
+    if folder then
+        for _, egg in ipairs(folder:GetChildren()) do
+            beforeDrop[egg] = true
+        end
+    end
+
+    -- ยิง BasketDrop
+    pcall(function() BasketDropRemote:FireServer() end)
+
+    -- รอไข่ใหม่ spawn ใน RenderedEggs (timeout 5 วิ)
+    local droppedEgg = nil
+    local deadline   = os.clock() + 5
+
+    while os.clock() < deadline do
+        task.wait(0.15)
+        local f = workspace:FindFirstChild("RenderedEggs")
+        if f then
+            for _, egg in ipairs(f:GetChildren()) do
+                if not beforeDrop[egg] then
+                    droppedEgg = egg
+                    break
+                end
+            end
+        end
+        if droppedEgg then break end
+    end
+
+    -- ถ้าเจอไข่ที่ตกลงมา → บินไปเก็บ
+    if droppedEgg then
+        pcall(function() pickupEggRaw(droppedEgg) end)
+    end
+
+    -- กลับ Plot
+    if myPlot then
+        tweenToPlot(myPlot)
+    elseif savedReturnCF then
+        tweenTo(savedReturnCF)
+    else
+        myHRP.CFrame = myHRP.CFrame * CFrame.new(0, -80, 0)
+        task.wait(0.1)
+    end
+end
+
+-- ==========================================
+-- Pickup ไข่ทั่วไป (แก้ใหม่)
+-- ==========================================
+local function pickupEgg(egg)
+    local myChar = LocalPlayer.Character
+    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local pickup = nil
+    for _, v in ipairs(egg:GetDescendants()) do
+        if v:IsA("ProximityPrompt") and v.Name == "Pickup" then
+            pickup = v
+            break
+        end
+    end
+    if not pickup then return end
+
+    local attachPart = pickup.Parent
+    if not attachPart or not attachPart:IsA("BasePart") then return end
+
+    -- บินไปเก็บ
+    tweenTo(attachPart.CFrame * CFrame.new(0, 3, 0))
+    task.wait(0.1)
+    fireproximityprompt(pickup, pickup.HoldDuration)
+    task.wait(pickup.HoldDuration + 0.85)
+
+    -- Volcano Dip ถ้าเปิด
+    if dropVolcanoEnabled then
+        doVolcanoDip()
+    end
+
+    -- Drop → เก็บไข่ที่ตก → กลับ Plot
+    dropAndPickupBeforeHome()
+end
+
+-- ==========================================
+-- กลับบ้าน (แก้ใหม่)
+-- ==========================================
+local function returnHome(hrp)
+    dropAndPickupBeforeHome()
+end
+-- ==========================================
+-- Volcano Zone Logic
+-- ==========================================
+
+local VOLCANO_EGGS         = { ["Dragon Egg"] = true, ["Volcanic Egg"] = true }
+local VOLCANO_ENTRANCE_POS = Vector3.new(-4939.836, 41284.703, -3679.983)
+local VOLCANO_VALIDATE_POS = Vector3.new(-4966.714, 41282.770, -3656.444)
+
+local function isVolcanoEgg(eggName)
+    return VOLCANO_EGGS[eggName] == true
+end
+
+-- ทิศทางจาก Entrance → Validate (เข้าใน)
+local ENTER_DIR = (VOLCANO_VALIDATE_POS - VOLCANO_ENTRANCE_POS).Unit
+-- ทิศทางออก (ตรงข้าม)
+local EXIT_DIR  = -ENTER_DIR
+
+local function enterVolcano()
+    -- บินมาหน้าประตู Entrance
+    tweenTo(CFrame.new(VOLCANO_ENTRANCE_POS + Vector3.new(0, 5, 0)))
+    task.wait(0.1)
+
+    -- บินเข้าไปอีก 2-3 studs หลังผ่านประตู
+    tweenTo(CFrame.new(VOLCANO_ENTRANCE_POS + ENTER_DIR * 3 + Vector3.new(0, 5, 0)))
+    task.wait(0.1)
+
+    -- บินไป VolcanoValidate
+    tweenTo(CFrame.new(VOLCANO_VALIDATE_POS + Vector3.new(0, 3, 0)))
+    task.wait(0.1)
+
+    -- บินเข้าไปอีก 2-3 studs หลังผ่าน Validate
+    tweenTo(CFrame.new(VOLCANO_VALIDATE_POS + ENTER_DIR * 3 + Vector3.new(0, 3, 0)))
+    task.wait(0.2)
+end
+
+local function exitVolcano()
+    -- บินกลับมาที่ VolcanoValidate
+    tweenTo(CFrame.new(VOLCANO_VALIDATE_POS + Vector3.new(0, 3, 0)))
+    task.wait(0.1)
+
+    -- บินออกไปอีก 2-3 studs หลังผ่าน Validate ขาออก
+    tweenTo(CFrame.new(VOLCANO_VALIDATE_POS + EXIT_DIR * 3 + Vector3.new(0, 3, 0)))
+    task.wait(0.1)
+
+    -- บินกลับมาที่ Entrance
+    tweenTo(CFrame.new(VOLCANO_ENTRANCE_POS + Vector3.new(0, 5, 0)))
+    task.wait(0.1)
+
+    -- บินออกมาข้างนอก 2-3 studs
+    tweenTo(CFrame.new(VOLCANO_ENTRANCE_POS + EXIT_DIR * 3 + Vector3.new(0, 5, 0)))
+    task.wait(0.2)
+end
+
+local function pickupVolcanoEgg(egg)
+    local myChar = LocalPlayer.Character
+    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local pickup = nil
+    for _, v in ipairs(egg:GetDescendants()) do
+        if v:IsA("ProximityPrompt") and v.Name == "Pickup" then
+            pickup = v
+            break
+        end
+    end
+    if not pickup then return end
+
+    local attachPart = pickup.Parent
+    if not attachPart or not attachPart:IsA("BasePart") then return end
+
+    -- บินเข้า Volcano ผ่านประตู
+    enterVolcano()
+
+    -- บินไปหาไข่
+    tweenTo(attachPart.CFrame * CFrame.new(0, 3, 0))
+    task.wait(0.1)
+
+    fireproximityprompt(pickup, pickup.HoldDuration)
+    task.wait(pickup.HoldDuration + 0.85)
+
+    -- บินออก Volcano ผ่านประตู
+    exitVolcano()
+    
+    -- กลับบ้าน
+    returnHome(myHRP)
+end
+
+-- เลือก pickup function ที่ถูกต้อง
+local function smartPickup(egg)
+	if isVolcanoEgg(egg.Name) then
+		pickupVolcanoEgg(egg)
+	else
+		pickupEgg(egg)
+	end
+end
+
+-- Auto Farm loop (แบบ 2)
+local function startAutoFarm()
+	if autoFarmActive then return end
+	if not selectedEggName or selectedEggName == "ไม่พบ RenderedEggs" or selectedEggName == "ไม่มีไข่" then return end
+	autoFarmActive = true
+	task.spawn(function()
+		while autoFarmActive do
+			setNoclip(true)
+			local eggs = getEggsByName(selectedEggName)
+			for _, egg in ipairs(eggs) do
+				if not autoFarmActive then break end
+				pcall(function() smartPickup(egg) end)
+				task.wait(0.3)
+			end
+			task.wait(0.1)
+		end
+		setNoclip(false)
+	end)
+end
+
+local function stopAutoFarm()
+	autoFarmActive = false
+	setNoclip(false)
+end
+
+-- Auto Plant loop
+local function startPlantFarm()
+	if plantActive then return end
+	local myPlot = getMyPlot()
+	if not myPlot then
+		Notify("Plant Egg", "ไม่พบ Plot ของคุณ!", "triangle-alert", 3)
+		return
+	end
+	plantActive = true
+	Notify("Plant Egg", "เริ่มวางไข่แล้ว", "sprout", 2)
+	task.spawn(function()
+		tweenToPlot(myPlot)
+		while plantActive do
+			setNoclip(true)
+			local eggs = getEggsToPlant()
+			if #eggs == 0 then
+				Notify("Plant Egg", "ไม่มีไข่ใน Backpack แล้ว!", "triangle-alert", 3)
+				plantActive = false
+				break
+			end
+			local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if not myHRP then task.wait(1); continue end
+			local origin    = myHRP.Position
+			local positions = getPlantPositions(origin, #eggs)
+			for i, egg in ipairs(eggs) do
+				if not plantActive then break end
+				plantEgg(egg, positions[i] or origin)
+				task.wait(PLANT_DELAY)
+			end
+			task.wait(0.5)
+			local updatedPlot = getMyPlot()
+			if updatedPlot then tweenToPlot(updatedPlot) end
+		end
+		setNoclip(false)
+		Notify("Plant Egg", "หยุดวางไข่แล้ว", "sprout", 2)
+	end)
+end
+
+local function stopPlantFarm()
+	plantActive = false
+	setNoclip(false)
+end
+
+-- ==========================================
+-- Egg Rarity Data + Icon Helper
+-- ==========================================
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local EGG_RARITY = {
+	["Cherub Egg"]    = { priority = 1000000000009, rarity = "Ethereal"  },
+	["Asteroid Egg"]  = { priority = 1000000000008, rarity = "Ethereal"  },
+	["Solaris Egg"]   = { priority = 1000000000007, rarity = "Ethereal"  },
+	["Blackhole Egg"] = { priority = 1000000000006, rarity = "Ethereal"  },
+	["Dragon Egg"]    = { priority = 1000000000005, rarity = "Ethereal"  },
+	["Volcanic Egg"]  = { priority = 1000000000004, rarity = "Ethereal"  },
+	["Giant Egg"]     = { priority = 1000000000003, rarity = "Ethereal"  },
+	["Galaxy Egg"]    = { priority = 1000000009,    rarity = "Divine"    },
+	["Aurora Egg"]    = { priority = 1000000008,    rarity = "Divine"    },
+	["Bloom Egg"]     = { priority = 1000000007,    rarity = "Divine"    },
+	["Tidal Egg"]     = { priority = 1000009,       rarity = "Mythic"    },
+	["Soul Egg"]      = { priority = 1000008,       rarity = "Mythic"    },
+	["Sinister Egg"]  = { priority = 1000007,       rarity = "Mythic"    },
+	["Flaming Egg"]   = { priority = 1000006,       rarity = "Mythic"    },
+	["Dominus Egg"]   = { priority = 1000005,       rarity = "Mythic"    },
+	["Skull Egg"]     = { priority = 1000004,       rarity = "Mythic"    },
+	["Crystal Egg"]   = { priority = 1000003,       rarity = "Mythic"    },
+	["Diamond Egg"]   = { priority = 80000,         rarity = "Legendary" },
+	["Golden Egg"]    = { priority = 30000,         rarity = "Legendary" },
+	["Glass Egg"]     = { priority = 10000,         rarity = "Legendary" },
+	["Ice Egg"]       = { priority = 3000,          rarity = "Epic"      },
+	["Slime Egg"]     = { priority = 1000,          rarity = "Epic"      },
+	["Flower Egg"]    = { priority = 750,           rarity = "Epic"      },
+	["Mushroom Egg"]  = { priority = 500,           rarity = "Epic"      },
+	["Leaf Egg"]      = { priority = 200,           rarity = "Rare"      },
+	["Stone Egg"]     = { priority = 100,           rarity = "Rare"      },
+	["Easter Egg"]    = { priority = 50,            rarity = "Rare"      },
+	["Cracked Egg"]   = { priority = 30,            rarity = "Rare"      },
+	["Brown Egg"]     = { priority = 5,             rarity = "Common"    },
+	["White Egg"]     = { priority = 1,             rarity = "Common"    },
+}
+
+local GameData = nil
+pcall(function()
+	GameData = require(ReplicatedStorage.GameData.Eggs)
+end)
+
+local function getEggIcon(name)
+	if type(GameData) ~= "table" then return "egg" end
+	local data = GameData[name] or GameData[name:gsub("%s*Egg%s*$", "")]
+	if not data then return "egg" end
+	for _, key in ipairs({"Image","ImageId","Icon","IconId","Thumbnail","ThumbnailId","Texture","TextureId"}) do
+		local val = data[key]
+		if val then
+			local str = tostring(val)
+			if str ~= "" then
+				if str:find("rbxassetid://",1,true)==1 or str:find("rbxthumb://",1,true)==1 then
+					return str
+				end
+				local id = str:match("(%d+)")
+				if id then return "rbxassetid://" .. id end
+			end
+		end
+	end
+	return "egg"
+end
+
+local function buildEggValues(nameList)
+	local list = {}
+	for _, name in ipairs(nameList) do
+		local info = EGG_RARITY[name]
+		table.insert(list, {
+			rawName  = name,
+			priority = info and info.priority or 0,
+			rarity   = info and info.rarity   or "?",
+			icon     = getEggIcon(name),
+		})
+	end
+	table.sort(list, function(a, b)
+		if a.priority ~= b.priority then return a.priority > b.priority end
+		return a.rawName < b.rawName
+	end)
+	local values = {}
+	for _, item in ipairs(list) do
+		local label = item.rawName:gsub("%s*Egg%s*$","") .. " [" .. item.rarity .. "]"
+		table.insert(values, { Title = label, Icon = item.icon, _raw = item.rawName })
+	end
+	return values
+end
+
+local function labelToRaw(label, valueList)
+	for _, v in ipairs(valueList) do
+		if type(v) == "table" and v.Title == label then
+			return v._raw
+		end
+	end
+	return label
+end
+
+local function getRenderedEggNames()
+	local folder = workspace:FindFirstChild("RenderedEggs")
+	if not folder then return {} end
+	local seen, names = {}, {}
+	for _, egg in ipairs(folder:GetChildren()) do
+		if not seen[egg.Name] then
+			seen[egg.Name] = true
+			table.insert(names, egg.Name)
+		end
+	end
+	return names
+end
+
+-- ==========================================
+-- Auto Farm แบบ 1
+-- ==========================================
+
+local selectedEggNames = {}
+local selectAll1       = false
+local autoFarm1Active  = false
+
+local function getTargetEggs()
+	local folder = workspace:FindFirstChild("RenderedEggs")
+	if not folder then return {} end
+	local result = {}
+	for _, egg in ipairs(folder:GetChildren()) do
+		if selectAll1 or selectedEggNames[egg.Name] then
+			table.insert(result, egg)
+		end
+	end
+	return result
+end
+
+local function startAutoFarm1()
+	if autoFarm1Active then return end
+	if not selectAll1 and next(selectedEggNames) == nil then
+		Notify("Farm", "เลือกไข่ก่อน!", "triangle-alert", 2)
+		return
+	end
+	autoFarm1Active = true
+	task.spawn(function()
+		while autoFarm1Active do
+			setNoclip(true)
+			local eggs = getTargetEggs()
+			for _, egg in ipairs(eggs) do
+				if not autoFarm1Active then break end
+				pcall(function() smartPickup(egg) end)
+				task.wait(0.3)
+			end
+			task.wait(0.1)
+		end
+		setNoclip(false)
+	end)
+end
+
+local function stopAutoFarm1()
+	autoFarm1Active = false
+	setNoclip(false)
+end
+
+-- ==========================================
+-- UI — RideTab
+-- ==========================================
+
+-- แบบ 1
+RideTab:Section({ Title = "Select Egg", Icon = "bookmark", Opened = true })
+
+local allKnownNames = {}
+for name in pairs(EGG_RARITY) do table.insert(allKnownNames, name) end
+do
+	local inMap = {}
+	for _, n in ipairs(allKnownNames) do inMap[n] = true end
+	for _, n in ipairs(getRenderedEggNames()) do
+		if not inMap[n] then table.insert(allKnownNames, n) end
+	end
+end
+
+local farm1Values        = buildEggValues(allKnownNames)
+local farm1ValuesWithAll = { { Title = "All / ทั้งหมด", Icon = "check-check" } }
+for _, v in ipairs(farm1Values) do table.insert(farm1ValuesWithAll, v) end
+
+local Farm1Dropdown = RideTab:Dropdown({
+	Title     = "Select Egg",
+	Desc      = "เลือกได้หลายชนิด | เลือก All = เก็บทุกชนิด",
+	Values    = farm1ValuesWithAll,
+	Value     = {},
+	Multi     = true,
+	Search    = true,
+	AllowNone = true,
+	Callback  = function(selected)
+		selectedEggNames = {}
+		selectAll1       = false
+		if type(selected) ~= "table" then return end
+		for k, v in pairs(selected) do
+			local title = type(k) == "string" and (v == true or v == 1) and k or (type(v) == "table" and v.Title or v)
+			if type(title) == "table" then title = title.Title end
+			if not title then continue end
+			if title:find("ทั้งหมด",1,true) or title:lower():find("all",1,true) then
+				selectAll1 = true
+				break
+			end
+			local raw = labelToRaw(title, farm1ValuesWithAll)
+			if raw then selectedEggNames[raw] = true end
+		end
+	end,
+})
+RideTab:Space()
+-- Farm Settings
+RideTab:Section({ Title = "Farm Settings", Icon = "settings", Opened = true })
+
+RideTab:Toggle({
+    Title    = "Auto Volcano Dip",
+    Desc     = "โยนใข่ลงลาวา",
+    Icon     = "flame",
+    Locked = true,
+    LockedTitle = "Require Premium",
+    Value    = false,
+    Callback = function(v)
+    end,
+})
+
+RideTab:Toggle({
+	Title = "Auto Farm",
+	Desc  = "ออโต้ฟาร์มไข่",
+	Icon  = "zap",
+	Value = false,
+	Callback = function(v)
+		if v then startAutoFarm1() else stopAutoFarm1() end
+	end,
+})
+
+RideTab:Slider({
+	Title = "Farm Speed",
+	Desc  = "ความเร็วในการบิน (studs/sec)",
+	Value = { Min = 50, Max = 500, Default = 300 },
+	Callback = function(v) tweenSpeed = v end,
+})
+-- ==========================================
+-- Auto Tab
+-- ==========================================
+
+local autoUpgradeActive    = false
+local autoUpgradeConn      = nil
+local autoUpgradeMaxActive = false
+local autoUpgradeMaxConn   = nil
+local autoRebirthActive    = false
+local autoRebirthConn      = nil
+local upgradePerStep       = 1
+
+local UpgradeRemote = game:GetService("ReplicatedStorage").Remotes.Game.Plot.Upgrades
+local RebirthRemote = game:GetService("ReplicatedStorage").Remotes.Game.Rebirth
+
+-- Auto Upgrade ทีละ step
+local function startAutoUpgrade()
+    if autoUpgradeActive then return end
+    autoUpgradeActive = true
+    autoUpgradeConn = RunService.Heartbeat:Connect(function()
+        if not autoUpgradeActive then return end
+        pcall(function()
+            for _ = 1, upgradePerStep do
+                UpgradeRemote:FireServer()
+            end
+        end)
+    end)
+end
+
+local function stopAutoUpgrade()
+    autoUpgradeActive = false
+    if autoUpgradeConn then
+        autoUpgradeConn:Disconnect()
+        autoUpgradeConn = nil
+    end
+end
+
+-- Auto Upgrade Max
+local function startAutoUpgradeMax()
+    if autoUpgradeMaxActive then return end
+    autoUpgradeMaxActive = true
+    autoUpgradeMaxConn = RunService.Heartbeat:Connect(function()
+        if not autoUpgradeMaxActive then return end
+        pcall(function()
+            UpgradeRemote:FireServer("Max")
+        end)
+    end)
+end
+
+local function stopAutoUpgradeMax()
+    autoUpgradeMaxActive = false
+    if autoUpgradeMaxConn then
+        autoUpgradeMaxConn:Disconnect()
+        autoUpgradeMaxConn = nil
+    end
+end
+
+-- Auto Rebirth
+local function startAutoRebirth()
+    if autoRebirthActive then return end
+    autoRebirthActive = true
+    autoRebirthConn = RunService.Heartbeat:Connect(function()
+        if not autoRebirthActive then return end
+        pcall(function()
+            RebirthRemote:FireServer()
+        end)
+    end)
+end
+
+local function stopAutoRebirth()
+    autoRebirthActive = false
+    if autoRebirthConn then
+        autoRebirthConn:Disconnect()
+        autoRebirthConn = nil
+    end
+end
+
+-- ==========================================
+-- UI
+-- ==========================================
+
+AutoTab:Section({ Title = "Auto Upgrade", Icon = "trending-up", Opened = true })
+
+AutoTab:Slider({
+    Title = "Upgrade Per Step",
+    Desc  = "จำนวนครั้งที่อัปต่อ 1",
+    Value = { Min = 1, Max = 100, Default = 1 },
+    Callback = function(v)
+        upgradePerStep = v
+    end,
+})
+
+local UpgradeRow = AutoTab:HStack()
+
+UpgradeRow:Toggle({
+    Title   = "Auto Upgrade",
+    Desc    = "ออโต้อัปเกรด",
+    Justify = "Center",
+    Icon    = "trending-up",
+    Value   = false,
+    Callback = function(v)
+        if v then startAutoUpgrade() else stopAutoUpgrade() end
+    end,
+})
+
+UpgradeRow:Toggle({
+    Title   = "Auto Upgrade Max",
+    Desc    = "ออโต้อัปเกรด Max",
+    Justify = "Center",
+    Icon    = "chevrons-up",
+    Value   = false,
+    Callback = function(v)
+        if v then startAutoUpgradeMax() else stopAutoUpgradeMax() end
+    end,
+})
+
+AutoTab:Space()
+
+AutoTab:Section({ Title = "Auto Rebirth", Icon = "rotate-cw", Opened = true })
+
+AutoTab:Toggle({
+    Title    = "Auto Rebirth",
+    Desc     = "ออโต้เกิดใหม่",
+    Icon     = "rotate-cw",
+    Value    = false,
+    Callback = function(v)
+        if v then startAutoRebirth() else stopAutoRebirth() end
+    end,
+})
+-- ==========================================
+-- ESP Tab Content
+-- ==========================================
+
+local espActive  = false
+local espFolder  = Instance.new("Folder")
+espFolder.Name   = "EggESP"
+espFolder.Parent = game:GetService("CoreGui")
+
+local function getEggFolder()
+	return workspace:FindFirstChild("RenderedEggs")
+end
+
+local function createEggLabel(egg)
+	local adornee = egg:FindFirstChildWhichIsA("BasePart", true)
+	if not adornee then return end
+
+	-- ใช้ GetDebugId เป็น key unique ต่อ instance
+	local key      = "ESP_" .. egg:GetDebugId()
+	local existing = espFolder:FindFirstChild(key)
+	if existing then existing:Destroy() end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name        = key
+	bb.Adornee     = adornee
+	bb.AlwaysOnTop = true
+	bb.Size        = UDim2.new(0, 160, 0, 40)
+	bb.StudsOffset = Vector3.new(0, 4, 0)
+	bb.MaxDistance = 0
+	bb.Parent      = espFolder
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Name                   = "Label"
+	lbl.BackgroundTransparency = 1
+	lbl.Size                   = UDim2.fromScale(1, 1)
+	lbl.TextColor3             = Color3.fromRGB(255, 220, 80)
+	lbl.TextStrokeTransparency = 0.3
+	lbl.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+	lbl.TextScaled             = true
+	lbl.Font                   = Enum.Font.GothamBold
+	lbl.Text                   = egg.Name
+	lbl.Parent                 = bb
+
+	return bb
+end
+
+local function clearAllESP()
+	for _, v in ipairs(espFolder:GetChildren()) do
+		v:Destroy()
+	end
+end
+
+local espConn = nil
+
+local function startESP()
+	if espActive then return end
+	espActive = true
+
+	-- สร้าง label ให้ไข่ที่มีอยู่แล้ว
+	local folder = getEggFolder()
+	if folder then
+		for _, egg in ipairs(folder:GetChildren()) do
+			pcall(function() createEggLabel(egg) end)
+		end
+	end
+
+	espConn = RunService.Heartbeat:Connect(function()
+		local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+		-- อัปเดต label ที่มีอยู่
+		for _, bb in ipairs(espFolder:GetChildren()) do
+			local lbl = bb:FindFirstChild("Label")
+			if not lbl or not bb.Adornee then continue end
+
+			local adornee = bb.Adornee
+			if not adornee or not adornee.Parent then
+				bb:Destroy()
+				continue
+			end
+
+			local eggName = adornee.Parent and adornee.Parent.Name or adornee.Name
+			local dist    = 0
+			if myHRP then
+				dist = math.floor((adornee.Position - myHRP.Position).Magnitude)
+			end
+			lbl.Text = eggName .. "\n📏 " .. dist .. " studs"
+		end
+
+		-- เพิ่ม label ให้ไข่ใหม่ที่เกิดขึ้น
+		local folder2 = getEggFolder()
+		if folder2 then
+			for _, egg in ipairs(folder2:GetChildren()) do
+				local key = "ESP_" .. egg:GetDebugId()
+				if not espFolder:FindFirstChild(key) then
+					pcall(function() createEggLabel(egg) end)
+				end
+			end
+		end
+	end)
+
+	Notify("ESP", "Egg ESP เปิดแล้ว", "eye", 2)
+end
+
+local function stopESP()
+	espActive = false
+	if espConn then
+		espConn:Disconnect()
+		espConn = nil
+	end
+	clearAllESP()
+	Notify("ESP", "Egg ESP ปิดแล้ว", "eye-off", 2)
+end
+
+EspTab:Section({ Title="Egg ESP", Icon="egg", Opened=true })
+
+EspTab:Toggle({
+	Title    = "Egg ESP",
+	Desc     = "แสดงชื่อไข่",
+	Icon     = "eye",
+	Value    = false,
+	Callback = function(v)
+		if v then startESP() else stopESP() end
+	end,
+})
+-- ==========================================
+-- LocalPlayer Tab
+-- ==========================================
+local UserInputService = game:GetService("UserInputService")
+
+LocalTab:Section({ Title="LocalPlayer", Icon="user", Opened=true })
+
+local WalkSpeed    = 16
+local JumpPower    = 50
+local SpeedEnabled = false
+local JumpEnabled  = false
+local InfiniteJump = false
+local NoclipEnabled = false
+local noclipConnection = nil
+local infiniteJumpConnection = nil
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "LocalPlayerESP"
+ESPFolder.Parent = game:GetService("CoreGui")
+
+local function getCharacter()
+    local c = LocalPlayer.Character
+    return (c and c.Parent) and c or nil
+end
+local function getHumanoid()
+    local c = getCharacter()
+    return c and c:FindFirstChildOfClass("Humanoid") or nil
+end
+
+local function applyMovement()
+    local h = getHumanoid()
+    if not h then return end
+    h.WalkSpeed  = SpeedEnabled and WalkSpeed or 16
+    h.UseJumpPower = true
+    h.JumpPower  = JumpEnabled  and JumpPower  or 50
+end
+
+LocalTab:Slider({
+    Title="Walk Speed", Desc="ปรับความเร็วในการวิ่ง",
+    Value={ Min=16, Max=300, Default=16 },
+    Callback=function(v) WalkSpeed=tonumber(v) or 16; if SpeedEnabled then applyMovement() end end
+})
+LocalTab:Toggle({
+    Title="Speed Boost", Desc="เปิด/ปิด WalkSpeed", Icon="zap", Value=false,
+    Callback=function(v) SpeedEnabled=v; applyMovement(); WindUI:Notify({ Title="LocalPlayer", Content=v and "เปิดวิ่งเร็วแล้ว" or "ปิดวิ่งเร็วแล้ว", Duration=2 }) end
+})
+LocalTab:Space()
+
+LocalTab:Slider({
+    Title="Jump Power", Desc="ปรับความสูงของการกระโดด",
+    Value={ Min=50, Max=300, Default=50 },
+    Callback=function(v) JumpPower=tonumber(v) or 50; if JumpEnabled then applyMovement() end end
+})
+LocalTab:Toggle({
+    Title="Jump Boost", Desc="เปิด/ปิด JumpPower", Icon="arrow-up", Value=false,
+    Callback=function(v) JumpEnabled=v; applyMovement(); WindUI:Notify({ Title="LocalPlayer", Content=v and "เปิดกระโดดสูงแล้ว" or "ปิดกระโดดสูงแล้ว", Duration=2 }) end
+})
+LocalTab:Space()
+
+local function stopInfiniteJump()
+    if infiniteJumpConnection then infiniteJumpConnection:Disconnect(); infiniteJumpConnection=nil end
+end
+local function startInfiniteJump()
+    stopInfiniteJump()
+    infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+        if not InfiniteJump then return end
+        local h = getHumanoid()
+        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end)
+end
+
+LocalTab:Toggle({
+    Title="infJump", Desc="สามารถกระโดดกลางอากาศได้", Icon="infinity", Value=false,
+    Callback=function(v)
+        InfiniteJump=v
+        if v then startInfiniteJump() else stopInfiniteJump() end
+        WindUI:Notify({ Title="LocalPlayer", Content=v and "เปิดกระโดดไม่จำกัดแล้ว" or "ปิดกระโดดไม่จำกัดแล้ว", Duration=2 })
+    end
+})
+LocalTab:Space()
+
+local function stopNoclip()
+    if noclipConnection then noclipConnection:Disconnect(); noclipConnection=nil end
+    local c = getCharacter()
+    if c then for _,o in ipairs(c:GetDescendants()) do if o:IsA("BasePart") then o.CanCollide=true end end end
+end
+local function startNoclip()
+    stopNoclip()
+    noclipConnection = RunService.Stepped:Connect(function()
+        if not NoclipEnabled then return end
+        local c = getCharacter()
+        if not c then return end
+        for _,o in ipairs(c:GetDescendants()) do if o:IsA("BasePart") then o.CanCollide=false end end
+    end)
+end
+
+LocalTab:Toggle({
+    Title="Noclip", Desc="เปิด/ปิด Noclip", Icon="ghost", Value=false,
+    Callback=function(v)
+        NoclipEnabled=v
+        if v then startNoclip() else stopNoclip() end
+        WindUI:Notify({ Title="LocalPlayer", Content=v and "เปิดทะลุกำแพงแล้ว" or "ปิดทะลุกำแพงแล้ว", Duration=2 })
+    end
+})
+LocalTab:Space()
+
+local function clearESP()
+    for _,o in ipairs(ESPFolder:GetChildren()) do o:Destroy() end
+end
+local function createESP(player)
+    if player==LocalPlayer or not ESPEnabled then return end
+    local char = player.Character
+    if not char then return end
+    local old = ESPFolder:FindFirstChild(player.Name)
+    if old then old:Destroy() end
+    local hl = Instance.new("Highlight")
+    hl.Name = player.Name
+    hl.Adornee = char
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillTransparency = 0.65
+    hl.OutlineTransparency = 0
+    hl.Parent = ESPFolder
+end
+local function updateESP()
+    if not ESPEnabled then clearESP(); return end
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then createESP(p) end
+    end
+end
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(0.5); if ESPEnabled then createESP(p) end end)
+end)
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5); applyMovement()
+    if NoclipEnabled then startNoclip() end
+end)
+
+
+-- ==========================================
+-- Settings Tab
+-- ==========================================
+SettingsTab:Section({ Title="Window", Icon="panel-top", Opened=true })
+
+local WindowKeybind = SettingsTab:Keybind({
+    Title="Open / Close Keybind", Desc="เปลี่ยนปุ่มที่ใช้เปิดปิดเมนู",
+    Value=CurrentKey,
+    Callback=function(value)
+        if type(value) ~= "string" then return end
+        local key = value:upper()
+        if not Enum.KeyCode[key] then return end
+        CurrentKey = key
+        Window:SetToggleKey(Enum.KeyCode[key])
+        Notify("Keybind Updated", 'WillowHub now uses "'..key..'".', "keyboard", 3)
+    end,
+})
+
+SettingsTab:Button({ Title="Open Window", Desc="เปิดเมนูทันที", Icon="panel-top-open", Callback=function() Window:Open() end })
+SettingsTab:Button({
+    Title="Reset Keybind", Desc="รีเซ็ตปุ่มเปิดปิดกลับเป็น U", Icon="rotate-ccw",
+    Callback=function()
+        CurrentKey = DEFAULT_KEY
+        Window:SetToggleKey(Enum.KeyCode.U)
+        WindowKeybind:Set("U")
+        Notify("Keybind Reset", 'WillowHub is now using "U".', "keyboard", 3)
+    end,
+})
+SettingsTab:Divider()
+
+SettingsTab:Section({ Title="Themes", Icon="palette", Opened=true })
+
+local ThemeDropdown = SettingsTab:Dropdown({
+    Title="Theme", Desc="เลือกธีมสีของเมนู",
+    Values={"Willow Rose","Willow Noir","Willow Crimson","Willow Midnight","Willow Violet","Willow Ocean","Willow Emerald","Willow Ember"},
+    Value=DEFAULT_THEME,
+    Callback=function(value)
+        if not Themes[value] then return end
+        CurrentTheme = value
+        WindUI:SetTheme(value)
+        ApplyOpenButtonTheme(value)
+        ApplyTagTheme(value)
+        Notify("Theme Changed", value.." applied.", "palette", 3)
+    end,
+})
+
+SettingsTab:Paragraph({ Title="Willow Glass", Desc="ทุกธีมใช้สไตล์กระจกโปร่งใสเหมือนกัน เปลี่ยนแค่สีหลัก", Icon="sparkles" })
+SettingsTab:Divider()
+
+SettingsTab:Section({ Title="Notifications", Icon="bell", Opened=true })
+
+local SilenceToggle = SettingsTab:Toggle({
+    Title="Silence Notifications", Desc="ปิดการแจ้งเตือนทั้งหมดของเมนู",
+    Icon="bell-off", Value=false,
+    Callback=function(value) NotificationsSilenced = value == true end,
+})
+
+SettingsTab:Paragraph({ Title="Reopen Notification", Desc="การแจ้งเตือนเปิดเมนูยังแสดงอยู่ เพื่อเตือนปุ่มที่ใช้", Icon="message-square-warning" })
+SettingsTab:Divider()
+
+SettingsTab:Section({ Title="Configs", Icon="folder-cog", Opened=true })
+
+local ConfigManager = Window.ConfigManager
+local ConfigName    = "Default"
+
+local ConfigNameInput = SettingsTab:Input({
+    Title="Config Name", Desc="ตั้งชื่อ Config ที่จะบันทึกหรือโหลด",
+    Icon="file-cog", Value=ConfigName, Placeholder="MyConfig",
+    Callback=function(value) if value and value ~= "" then ConfigName = value end end,
+})
+
+local function CreateConfig(name)
+    local config = ConfigManager:CreateConfig(name)
+    config:Register("WillowKeybind",          WindowKeybind)
+    config:Register("SilenceNotifications",   SilenceToggle)
+    return config
+end
+
+local function GetConfigs()
+    local ok, configs = pcall(function() return ConfigManager:AllConfigs() end)
+    if not ok or type(configs) ~= "table" or #configs == 0 then return {"No configs"} end
+    table.sort(configs); return configs
+end
+
+local ConfigDropdown = SettingsTab:Dropdown({
+    Title="Saved Configs", Desc="เลือก Config ที่บันทึกไว้",
+    Values=GetConfigs(), Value="No configs",
+    Callback=function(value)
+        if value == "No configs" then SelectedConfig = nil; return end
+        SelectedConfig = value; ConfigName = value; ConfigNameInput:Set(value)
+    end,
+})
+
+local function RefreshConfigDropdown()
+    pcall(function() ConfigDropdown:Refresh(GetConfigs()) end)
+end
+
+SettingsTab:Button({
+    Title="Save Config", Desc="บันทึกการตั้งค่าปัจจุบัน", Icon="save",
+    Callback=function()
+        if not ConfigName or ConfigName == "" then Notify("Config", "Enter a config name first.", "triangle-alert", 3); return end
+        local name = ConfigName:gsub("[^%w_%-%s]", "")
+        if name == "" then Notify("Config", "Invalid config name.", "triangle-alert", 3); return end
+        local ok, err = pcall(function() CreateConfig(name):Save() end)
+        if not ok then Notify("Config Error", tostring(err), "triangle-alert", 4); return end
+        SelectedConfig = name; RefreshConfigDropdown()
+        Notify("Config Saved", "Saved "..name..".", "save", 3)
+    end,
+})
+SettingsTab:Button({
+    Title="Load Config", Desc="โหลด Config ที่เลือกไว้", Icon="folder-open",
+    Callback=function()
+        local name = SelectedConfig or ConfigName
+        if not name or name == "" or name == "No configs" then Notify("Config", "Select or enter a config first.", "triangle-alert", 3); return end
+        local ok, err = pcall(function() CreateConfig(name):Load() end)
+        if not ok then Notify("Config Error", tostring(err), "triangle-alert", 4); return end
+        CurrentKey = WindowKeybind.Value or CurrentKey
+        if type(CurrentKey) == "string" and Enum.KeyCode[CurrentKey] then
+            Window:SetToggleKey(Enum.KeyCode[CurrentKey])
+        end
+        NotificationsSilenced = SilenceToggle.Value == true
+        Notify("Config Loaded", "Loaded "..name..".", "folder-open", 3)
+    end,
+})
+SettingsTab:Button({
+    Title="Delete Config", Desc="ลบ Config ที่เลือกไว้", Icon="trash-2",
+    Callback=function()
+        local name = SelectedConfig or ConfigName
+        if not name or name == "" or name == "No configs" then Notify("Config", "Select a config first.", "triangle-alert", 3); return end
+        local ok, err = pcall(function() CreateConfig(name):Delete() end)
+        if not ok then Notify("Config Error", tostring(err), "triangle-alert", 4); return end
+        SelectedConfig = nil; RefreshConfigDropdown()
+        Notify("Config Deleted", "Deleted "..name..".", "trash-2", 3)
+    end,
+})
+SettingsTab:Button({
+    Title="Refresh Configs", Desc="รีเฟรชรายการ Config ที่บันทึกไว้", Icon="refresh-cw",
+    Callback=function() RefreshConfigDropdown(); Notify("Configs", "Configuration list refreshed.", "refresh-cw", 3) end,
+})  
+-- ==========================================
+-- On Close
+-- ==========================================
+Window:OnClose(function()
+    task.delay(0.2, function() ReopenNotify() end)
+end)
